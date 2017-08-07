@@ -76,7 +76,6 @@ void VideoControls::toggleVideo()
 }
 
 
-
 // Restart the video
 void VideoControls::resetVideo()
 {
@@ -98,6 +97,47 @@ void VideoControls::resetVideo()
 	// If the video was paused before reseting, launch it
 	if(!isPlaying)
 	    toggleVideo();
+}
+
+bool VideoControls::getIsPlaying()
+{
+	return isPlaying;
+}
+
+bool VideoControls::getIsFinished()
+{
+	return (time(NULL) >= startTime + VideoLength)? true : false ;
+}
+
+bool VideoControls::process(uint8_t cmd, char value[])
+{
+	if(getIsFinished())
+		stopVideo();
+
+	switch(command[1])
+	{
+	case START: startVideo(VideoFile,VideoLength);
+				break;
+			  
+	case PAUSE: toggleVideo();
+				break;
+			  
+	case RESET: resetVideo();
+				break;
+			  
+	case STOP : stopVideo();
+				break;
+			  
+	case QUIT : stopVideo();
+				int status;
+				wait(&status);
+				return false;
+				break;
+		
+	//case NEWFILE :	setVideoFile(value)
+	}
+	
+	return true;
 }
 
 
