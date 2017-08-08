@@ -49,6 +49,7 @@ Note :	if the program is run from systemd during start,
 
 
 // Function prototypes
+static void parseRecvBuff(char recvBuff[], int recvBuffSize, uint8_t * cmd, char value[]);
 static void Delay(float delay);
 static void sigchld_handler(int s);
 static void *get_in_addr(struct sockaddr *sa);
@@ -60,8 +61,8 @@ int sockFD,newFD;
 pid_t pid=0;
 char sendBuff[256];
 char recvBuff[256];
-uint8_t sendBuffSize;
-uint8_t recvBuffSize;
+int sendBuffSize;
+int recvBuffSize;
 
 using namespace std;
 
@@ -94,6 +95,7 @@ int main(void)
 			perror("server: socket");
 			continue; // Not a valid socket, continue down the list
 		}
+		fcntl(sockFD, F_SETFL, O_NONBLOCK);
 		if( setsockopt(sockFD,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(int)) == -1 )
 		{
 			perror("setsockopt");
@@ -137,7 +139,7 @@ int main(void)
 		newFD = accept(sockFD, (struct sockaddr *)&clients_addr,&sin_size);
 		if(newFD == -1)
 		{
-			perror("accept");
+		//	perror("accept");
 			continue;
 		}
 		inet_ntop(clients_addr.ss_family,get_in_addr((struct sockaddr *)&clients_addr),s,sizeof s);
@@ -145,52 +147,69 @@ int main(void)
 
 		if(!fork()) // This is the child process
 		{
-			video.startVideo("/home/EscapeRush/Video_Looper/tableau.mp4",60);
+			close(sockFD); // Child don't need the parent socket FD
+			sendBuffSize = sprintf((char*)sendBuff,"OmxServer: [cmd value]\n");
+			if(send(newFD,sendBuff,sendBuffSize,0) == -1)
+				perror("send");
+	
 			while(1)
-			{
-				close(sockFD); // Child don't need the parent socket FD
-				sendBuffSize = sprintf((char*)sendBuff,"OmxServer:\"[cmd;value;]\"\n");
-				if(send(newFD,sendBuff,sendBuffSize,0) == -1)
-					perror("send");
+			{	
+				recvBuffSize = recv(newFD, recvBuff, 256-1, 0);
 				
-				if ((recvBuffSize = recv(newFD, recvBuff, 256-1, 0)) == -1) 
+				if(recvBuffSize > 0) // If we received a new cmd
 				{
-					perror("recv");
-					exit(EXIT_FAILURE);
-				}else
-				{
-					if(recvBuff[0]=='p')
-						video.toggleVideo();
-					if(recvBuff[0]=='r')
-						video.resetVideo();
-					if(recvBuff[0]=='q')
-					{
-						video.stopVideo();
+					uint8_t cmd;
+					char value[256];
+					parseRecvBuff(recvBuff,recvBuffSize,&cmd,value);
+					if(!video.process(cmd,value)) // Should be called often (>1Hz)
 						break;
-					}
+				
 				}
+					
+				Delay(0.5);
 			}
 			
 			close(newFD);
 			exit(EXIT_SUCCESS);
 		} // Child has exited
 		
-		
-		
 		close(newFD);
-		
-		// TO BE IMPLEMENTED IN VideoControls Class
-		// We will not reach the end of the video while in pause but the system time continue to roll, so ignore...
-	/*	if (VideoControls::isPlaying)
-			if(time(NULL) >= startTime + VideoLength)
-			{
-				fprintf(stdout,"Restarting the video because videoLength has expired\n");
-				VideoControls::stopVideo();
-			}*/
+
 	}
     return 0;
 }
 
+void parseRecvBuff(char recvBuff[], int recvBuffSize, uint8_t * cmd, char value[])
+{	
+	uint8_t cmdEnd,valueEnd;
+	for(cmdEnd=0;cmdEnd<255;cmdEnd++)
+		if(recvBuff[cmdEnd] == ' ')
+			break; // cmdEnd-1 is the last char of the cmd and cmdEnd+1 the first of the value
+	recvBuff[cmdEnd] = '\0'; // Add a NULL char for "strcmp()"
+	
+	for(valueEnd=cmdEnd+1;valueEnd<255;valueEnd++)
+		if(recvBuff[valueEnd] == '\n')
+			break; //  j-1 is the last char of the value
+
+	for(uint8_t j=cmdEnd+1;j<=valueEnd;j++)
+		value[j] = recvBuff[cmdEnd+1+j];
+
+	*cmd = INVALID; // by default
+	if(!strcmp("start",recvBuff))
+		*cmd = START; // match
+	if(!strcmp("stop",recvBuff))
+		*cmd = STOP; // match
+	if(!strcmp("reset",recvBuff))
+		*cmd = RESET; // match
+	if(!strcmp("quit",recvBuff))
+		*cmd = QUIT; // match
+	if(!strcmp("pause",recvBuff))
+		*cmd = PAUSE; // match
+	if(!strcmp("file",recvBuff))
+		*cmd = NEWFILE; // match
+	
+	
+}
 
 void Delay(float delay)
 {
