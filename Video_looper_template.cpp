@@ -180,8 +180,33 @@ int main(void)
 }
 
 void parseRecvBuff(char recvBuff[], int recvBuffSize, uint8_t * cmd, char value[])
-{
+{	
+	uint8_t cmdEnd,valueEnd;
+	for(cmdEnd=0;cmdEnd<255;cmdEnd++)
+		if(recvBuff[cmdEnd] == ' ')
+			break; // cmdEnd-1 is the last char of the cmd and cmdEnd+1 the first of the value
+	recvBuff[cmdEnd] = '\0'; // Add a NULL char for "strcmp()"
 	
+	for(valueEnd=cmdEnd+1;valueEnd<255;valueEnd++)
+		if(recvBuff[valueEnd] == '\n')
+			break; //  j-1 is the last char of the value
+
+	for(uint8_t j=cmdEnd+1;j<=valueEnd;j++)
+		value[j] = recvBuff[cmdEnd+1+j];
+
+	*cmd = INVALID; // by default
+	if(!strcmp("start",recvBuff))
+		*cmd = START; // match
+	if(!strcmp("stop",recvBuff))
+		*cmd = STOP; // match
+	if(!strcmp("reset",recvBuff))
+		*cmd = RESET; // match
+	if(!strcmp("quit",recvBuff))
+		*cmd = QUIT; // match
+	if(!strcmp("pause",recvBuff))
+		*cmd = PAUSE; // match
+	if(!strcmp("file",recvBuff))
+		*cmd = NEWFILE; // match
 	
 	
 }
