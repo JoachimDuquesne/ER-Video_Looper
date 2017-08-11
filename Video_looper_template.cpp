@@ -48,8 +48,9 @@ Note :	if the program is run from systemd during start,
 
 
 
+
 // Function prototypes
-static void parseRecvBuff(char recvBuff[], int recvBuffSize, uint8_t * cmd, char value[]);
+static void parseRecvBuff(char recvBuff[], int recvBuffSize);
 static void Delay(float delay);
 static void sigchld_handler(int s);
 static void *get_in_addr(struct sockaddr *sa);
@@ -64,7 +65,12 @@ char recvBuff[256];
 int sendBuffSize;
 int recvBuffSize;
 
+
+VideoControls video;
+
+
 using namespace std;
+
 
 int main(void)
 {
@@ -75,7 +81,6 @@ int main(void)
 	char s[INET_ADDRSTRLEN];
 	int rv;
 	int yes=1;
-	VideoControls video;
 
 	memset(&hints,0,sizeof hints);
 	hints.ai_family = AF_UNSPEC;
@@ -132,7 +137,7 @@ int main(void)
 
 
 	// Start main loop
-//video.startVideo("/home/EscapeRush/Video_Looper/tableau.mp4",60);
+//video.start("/home/EscapeRush/Video_Looper/tableau.mp4",20);
  	while(1)
  	{
 		sin_size = sizeof clients_addr;
@@ -151,64 +156,100 @@ int main(void)
 			sendBuffSize = sprintf((char*)sendBuff,"OmxServer: [cmd value]\n");
 			if(send(newFD,sendBuff,sendBuffSize,0) == -1)
 				perror("send");
-	
+			uint8_t j=255;
 			while(1)
-			{	
+			{
 				recvBuffSize = recv(newFD, recvBuff, 256-1, 0);
-				
+				Delay(0.5);
+
 				if(recvBuffSize > 0) // If we received a new cmd
 				{
-					uint8_t cmd;
-					char value[256];
-					parseRecvBuff(recvBuff,recvBuffSize,&cmd,value);
-					if(!video.process(cmd,value)) // Should be called often (>1Hz)
-						break;
-				
+					fprintf(stdout,"received:%s\n",recvBuff);
+					parseRecvBuff(recvBuff,recvBuffSize);
 				}
-					
-				Delay(0.5);
+
+				if(j--)
+				{
+					j=255;
+					fprintf(stdout,"\n");
+				}
+				fprintf(stdout,".");
 			}
-			
+
 			close(newFD);
 			exit(EXIT_SUCCESS);
 		} // Child has exited
-		
+
 		close(newFD);
 
 	}
     return 0;
 }
 
-void parseRecvBuff(char recvBuff[], int recvBuffSize, uint8_t * cmd, char value[])
-{	
-	uint8_t cmdEnd,valueEnd;
-	for(cmdEnd=0;cmdEnd<255;cmdEnd++)
-		if(recvBuff[cmdEnd] == ' ')
-			break; // cmdEnd-1 is the last char of the cmd and cmdEnd+1 the first of the value
-	recvBuff[cmdEnd] = '\0'; // Add a NULL char for "strcmp()"
-	
-	for(valueEnd=cmdEnd+1;valueEnd<255;valueEnd++)
-		if(recvBuff[valueEnd] == '\n')
-			break; //  j-1 is the last char of the value
+void parseRecvBuff(char * recvBuff, int recvBuffSize)
+{
+	char cmd[3][256];
+	uint8_t i=0,j=0,k=0;
+	memset(&cmd,'\0',sizeof cmd);
 
-	for(uint8_t j=cmdEnd+1;j<=valueEnd;j++)
+	for(i=0 ; i<recvBuffSize && i<256 ; i++)
+	{
+		if( recvBuff[i] == ' ' || recvBuff[i] == '\n' )
+		{
+//			cmd[j][k]='\0';
+			k=0;
+			j++;
+			continue;
+		}
+		cmd[j][k++]=recvBuff[i];
+	}
+//	cmd[j][k]='\0'; // the last argument was skipped if there was no space after it
+
+	fprintf(stdout,"cmd:%s\narg1:%s\narg2:%s\n",&cmd[0][0],&cmd[1][0],&cmd[2][0]);
+/*
+	uint8_t cmdEnd,valueEnd;
+	for(cmdEnd=0;cmdEnd<recvBuffSize;cmdEnd++)
+		if(recvBuff[cmdEnd] == ' ' || recvBuff[cmdEnd] == '\n' || recvBuff[cmdEnd] == '\0')
+			break; // cmdEnd-1 is the last char of the cmd
+
+	recvBuff[cmdEnd] = '\0'; // Add a NULL char for "strcmp()"
+
+	if(cmdEnd < recvBuffSize) // else there is no parameter
+		for(valueEnd=cmdEnd+1;valueEnd<recvBuffSize;valueEnd++)
+			if(recvBuff[valueEnd] == ' ' || recvBuff[valueEnd] == '\n' || recvBuff[valueEnd] == '\0')
+				break; //  j-1 is the last char of the value
+
+	for(uint8_t j=0;j+cmdEnd+1<valueEnd;j++)
 		value[j] = recvBuff[cmdEnd+1+j];
 
-	*cmd = INVALID; // by default
+
 	if(!strcmp("start",recvBuff))
-		*cmd = START; // match
+	{
+//		video.start();
+	}
+
 	if(!strcmp("stop",recvBuff))
-		*cmd = STOP; // match
+		video.stop();
+
 	if(!strcmp("reset",recvBuff))
-		*cmd = RESET; // match
-	if(!strcmp("quit",recvBuff))
-		*cmd = QUIT; // match
+		video.reset();
+
 	if(!strcmp("pause",recvBuff))
-		*cmd = PAUSE; // match
-	if(!strcmp("file",recvBuff))
-		*cmd = NEWFILE; // match
-	
-	
+		video.toggle();
+*/
+//printf(stdout,"cmdEnd=%d value=%s valueEnd=%d",cmdEnd,*value,valueEnd);
+/*	switch(recvBuff[0])
+	{
+		case 'p': video.toggle();
+			  break;
+		case 'r': video.reset();
+			  break;
+		case 's': video.start("/home/EscapeRush/Video_Looper/tableau.mp4",20);
+			  break;
+		case 'q': video.stop();
+			  break;
+	}
+*/
 }
 
 void Delay(float delay)
