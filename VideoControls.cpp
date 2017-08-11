@@ -1,23 +1,30 @@
+
 #include "VideoControls.h"
 
 
 VideoControls::VideoControls()
 {
+	if(pthread_create(&thread, NULL, monitoring, NULL) == -1) // Launching thread failed
+	{
+		perror("pthread_create");
+		exit(EXIT_FAILURE);
+	}
+
 // Implement singelton
 }
 
 
 // Start omxplayer
-void VideoControls::startVideo(char const * VideoFile, unsigned int Video_Length)
+void VideoControls::start(char const * videofile, int videolength)
 {
-	VideoLength = Video_Length;
-	isPlaying = true;
 
 	if(pid >0) // A child already exist
-		stopVideo();
+	{
+		stop();
+		//wait for child to terminate
+	}
 
 	pipe(pipeFD);	// Create a pipe between father and child process
-
 	pid = fork();	// Spawn child process
 
 	if(pid == -1)
@@ -30,8 +37,8 @@ void VideoControls::startVideo(char const * VideoFile, unsigned int Video_Length
 	if(pid == 0)
 	{ // We are in the child process : start omxxplayer
 		close(pipeFD[1]);	// closing write side of the pipe
-		dup2(pipeFD[0],STDIN_FILENO);
-		char const * arguments[] = {"omxplayer","--no-osd","-o","hdmi",VideoFile,NULL};
+		dup2(pipeFD[0],STDIN_FILENO); // Linking pipe output to stdin (read by omxplayer)
+		char const * arguments[] = {"omxplayer","--no-osd","-o","hdmi",videofile,NULL};
 		if( execv("/usr/bin/omxplayer",const_cast<char**>(arguments)) == -1)
 		{
 			perror("execv omxplayer");
@@ -43,13 +50,16 @@ void VideoControls::startVideo(char const * VideoFile, unsigned int Video_Length
 	// Only the father process can arrive here
 	startTime = time(NULL);
 	stopTime  = time(NULL);
+	videoLength = videolength;
 	close(pipeFD[0]); // closing the reading side of the pipe
+	isPlaying = true;
+	isFinished = false;
 }
 
 
 // Toggle between play and paused
 // Update isPlaying, startTime and stopTime
-void VideoControls::toggleVideo()
+void VideoControls::toggle()
 {
 	if(pid <= 0) // We dont have a child running omxplayer so we can't toggle
 	{
@@ -77,7 +87,7 @@ void VideoControls::toggleVideo()
 
 
 // Restart the video
-void VideoControls::resetVideo()
+void VideoControls::reset()
 {
 	if(pid <= 0)
 	{
@@ -96,8 +106,9 @@ void VideoControls::resetVideo()
 
 	// If the video was paused before reseting, launch it
 	if(!isPlaying)
-	    toggleVideo();
+	    toggle();
 }
+
 
 bool VideoControls::getIsPlaying()
 {
@@ -106,42 +117,11 @@ bool VideoControls::getIsPlaying()
 
 bool VideoControls::getIsFinished()
 {
-	return (time(NULL) >= startTime + VideoLength)? true : false ;
-}
-
-bool VideoControls::process(uint8_t cmd, char value[])
-{
-	if(getIsFinished())
-		stopVideo();
-
-	switch(command[1])
-	{
-	case START: startVideo(VideoFile,VideoLength);
-				break;
-			  
-	case PAUSE: toggleVideo();
-				break;
-			  
-	case RESET: resetVideo();
-				break;
-			  
-	case STOP : stopVideo();
-				break;
-			  
-	case QUIT : stopVideo();
-				int status;
-				wait(&status);
-				return false;
-				break;
-		
-	//case NEWFILE :	setVideoFile(value)
-	}
-	
-	return true;
+	return isFinished;
 }
 
 
-void VideoControls::stopVideo()
+void VideoControls::stop()
 {
 	write(pipeFD[1],"q",1);
 	fsync(pipeFD[1]);
@@ -150,3 +130,26 @@ void VideoControls::stopVideo()
 	isPlaying = false;
 	close(pipeFD[1]);
 }
+
+
+void * VideoControls::monitoring(void *arg)
+{
+	while(!isFinished)
+	{
+		if(isPlaying)
+			isFinished = (time(NULL) > startTime + videoLength) ? true : false ;
+		sleep(1);
+	}
+	fprintf(stdout,"Video Length reach, stopping... \n");
+	stop();
+	pthread_exit(NULL);
+}
+
+bool VideoControls::isPlaying;
+bool VideoControls::isFinished;
+time_t VideoControls::startTime,VideoControls::stopTime;
+int VideoControls::pipeFD[2];
+pthread_t VideoControls::thread;
+pid_t VideoControls::pid;
+int VideoControls::videoLength;
+void * VideoControls::monitoring(void * arg);
