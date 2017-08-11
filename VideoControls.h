@@ -19,37 +19,29 @@
 #include <time.h>
 #include <signal.h>
 #include <errno.h>
+#include <pthread.h>
 
-#define INVALID	0
-#define START	1
-#define STOP	2
-#define RESET	3
-#define PAUSE	4
-#define QUIT	5
-#define NEWFILE	6
 
 
 class VideoControls {
 	public:
 		VideoControls();
-		
-		void toggleVideo();
-		void resetVideo();
-		void startVideo(char const * VideoFile, unsigned int Video_Length);
-		bool getIsPlaying();
-		bool getIsFinished();
-		bool process(uint8_t cmd, char value[]);
-		void stopVideo();
-		float initialDelay;		// number of seconds to play before pausing (when reseting video)
-		
+		static void toggle();
+		static void reset();
+		static void start(char const * videofile, int videolength);
+		static bool getIsPlaying();
+		static bool getIsFinished();
+		static void stop();
+
 	private:
-		bool isPlaying ; // keep track if we are playing or if the video is in pause
-		time_t startTime,stopTime;
-		int pipeFD[2];
-		pid_t pid;
-		int VideoLength;
-		char VideoFile[256];
-		char command[256];
+		static bool isPlaying; // keep track if we are playing or if the video is in pause
+		static bool isFinished;
+		static time_t startTime,stopTime;
+		static int pipeFD[2];
+		static pthread_t thread;
+		static pid_t pid;
+		static int videoLength;
+		static void * monitoring(void * arg);
 
 };
 #endif /* _VIDEO_CONTROLS_H_ */
