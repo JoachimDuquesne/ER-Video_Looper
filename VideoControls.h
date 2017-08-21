@@ -34,12 +34,13 @@ class VideoControls {
 		static void stop();
 
 	private:
-		static bool isPlaying; // keep track if we are playing or if the video is in pause
-		static bool isFinished;
+		static volatile bool isPlaying; // keep track if we are playing or if the video is in pause
+		static volatile bool isFinished;
 		static time_t startTime,stopTime;
 		static int pipeFD[2];
 		static pthread_t thread;
-		static pid_t pid;
+		static volatile pid_t pid;
+		static int childStatus;
 		static int videoLength;
 		static void * monitoring(void * arg);
 

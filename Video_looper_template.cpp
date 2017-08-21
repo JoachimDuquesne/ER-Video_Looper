@@ -5,7 +5,7 @@
 // Copyright   : Gift to Escape Rush SPRL ;)
 // Description :
 //============================================================================
-
+#include <mosquitto.h>
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,23 +42,19 @@ Note :	if the program is run from systemd during start,
 
 
 // Defines
-#define PORT "55335"
+#define PORT 		1883
+#define IP_BROKER 	"192.168.43.1"
+#define TOPIC_CTRL 	"VideoControlTopic"
+
 
 // Global variables
 
 
-
-
 // Function prototypes
-static void parseRecvBuff(char recvBuff[], int recvBuffSize);
+static void parseMessage(struct mosquitto * mosq, void * userdata, const struct mosquitto_message * message);
 static void Delay(float delay);
-static void sigchld_handler(int s);
-static void *get_in_addr(struct sockaddr *sa);
 
 // Globale variables
-//char systemCallBuff[256];
-
-int sockFD,newFD;
 pid_t pid=0;
 char sendBuff[256];
 char recvBuff[256];
@@ -72,200 +68,77 @@ VideoControls video;
 using namespace std;
 
 
-int main(void)
+int main(int argc, char *argv[])
 {
-	struct addrinfo hints, *servinfo, *p;
-	struct sockaddr_storage clients_addr;
-	socklen_t sin_size;
-	struct sigaction sa;
-	char s[INET_ADDRSTRLEN];
-	int rv;
-	int yes=1;
-
-	memset(&hints,0,sizeof hints);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE;
-
-	if( (rv=getaddrinfo(NULL,PORT,&hints,&servinfo)) != 0 )
+	struct mosquitto * mosq = NULL;
+	int messageID;
+	mosquitto_lib_init();
+	mosq = mosquitto_new(NULL,true,NULL);
+	if(mosq == NULL)
 	{
-		fprintf(stderr,"getaddrinfo: %s\n",gai_strerror(rv));
-		exit(EXIT_FAILURE);
+		perror("mosquitto_new:");
+		return EXIT_FAILURE;
 	}
 
-	for(p=servinfo; p!=NULL; p=p->ai_next)
+	mosquitto_message_callback_set(mosq,parseMessage);
+
+	if(mosquitto_connect(mosq,IP_BROKER,PORT,60) != 0)
 	{
-		if( (sockFD=socket(p->ai_family,p->ai_socktype,p->ai_protocol)) == -1)
-		{
-			perror("server: socket");
-			continue; // Not a valid socket, continue down the list
-		}
-		fcntl(sockFD, F_SETFL, O_NONBLOCK);
-		if( setsockopt(sockFD,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(int)) == -1 )
-		{
-			perror("setsockopt");
-			exit(EXIT_FAILURE); // Unable to set socket options
-		}
-		if( bind(sockFD,p->ai_addr,p->ai_addrlen) == -1 )
-		{
-			close(sockFD);
-			perror("server : bind");
-			continue; // Unable to bind, try another addr down the list
-		}
-		break; // we found a correct socket, leave the for loop
+		perror("mosquitto connect:");
+		return EXIT_FAILURE;
 	}
-	freeaddrinfo(servinfo);
-	if(p==NULL) // We reached then end of the list, so no valid socket found
+
+	if(mosquitto_subscribe(mosq,&messageID,TOPIC_CTRL,2) != 0)
 	{
-		fprintf(stderr,"server : failed to bind");
-		exit(EXIT_FAILURE);
+		perror("mosquitto subscribe:");
+		return EXIT_FAILURE;
 	}
-	if(listen(sockFD,10) == -1)
-	{
-		perror("Listen");
-		exit(EXIT_FAILURE);
-	}
-	sa.sa_handler = sigchld_handler; // reap all dead processes ??
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_RESTART;
-	if(sigaction(SIGCHLD,&sa,NULL) == -1)
-	{
-		perror("sigaction");
-		exit(EXIT_FAILURE);
-	}
-	fprintf(stdout,"server : waiting for connections ... \n");
 
 
 	// Start main loop
-//video.start("/home/EscapeRush/Video_Looper/tableau.mp4",20);
  	while(1)
  	{
-		sin_size = sizeof clients_addr;
-		newFD = accept(sockFD, (struct sockaddr *)&clients_addr,&sin_size);
-		if(newFD == -1)
-		{
-		//	perror("accept");
-			continue;
-		}
-		inet_ntop(clients_addr.ss_family,get_in_addr((struct sockaddr *)&clients_addr),s,sizeof s);
-		fprintf(stdout,"server: got a connection from %s\n",s);
-
-		if(!fork()) // This is the child process
-		{
-			close(sockFD); // Child don't need the parent socket FD
-			sendBuffSize = sprintf((char*)sendBuff,"OmxServer: [cmd value]\n");
-			if(send(newFD,sendBuff,sendBuffSize,0) == -1)
-				perror("send");
-			uint8_t j=255;
-			while(1)
-			{
-				recvBuffSize = recv(newFD, recvBuff, 256-1, 0);
-				Delay(0.5);
-
-				if(recvBuffSize > 0) // If we received a new cmd
-				{
-					fprintf(stdout,"received:%s\n",recvBuff);
-					parseRecvBuff(recvBuff,recvBuffSize);
-				}
-
-				if(j--)
-				{
-					j=255;
-					fprintf(stdout,"\n");
-				}
-				fprintf(stdout,".");
-			}
-
-			close(newFD);
-			exit(EXIT_SUCCESS);
-		} // Child has exited
-
-		close(newFD);
-
+		mosquitto_loop(mosq,300,1);
+		Delay(0.1);
 	}
-    return 0;
+    return EXIT_SUCCESS;
 }
 
-void parseRecvBuff(char * recvBuff, int recvBuffSize)
+void parseMessage(struct mosquitto * mosq, void * userdata, const struct mosquitto_message * message)
 {
-	char cmd[3][256];
-	uint8_t i=0,j=0,k=0;
-	memset(&cmd,'\0',sizeof cmd);
+	string s = (char*)message->payload;
+	s.append(" ");
+	size_t pos = 0;
+	string cmd[5];
+	uint8_t	i=0;
 
-	for(i=0 ; i<recvBuffSize && i<256 ; i++)
+	fprintf(stderr,"%s\n",s.c_str());
+
+	while( (pos=s.find(" ")) != string::npos)
 	{
-		if( recvBuff[i] == ' ' || recvBuff[i] == '\n' )
-		{
-//			cmd[j][k]='\0';
-			k=0;
-			j++;
-			continue;
-		}
-		cmd[j][k++]=recvBuff[i];
+		cmd[i]=s.substr(0,pos);
+		s.erase(0,pos+1);
+		fprintf(stderr,"%s ",cmd[i].c_str());
+		i++;
 	}
-//	cmd[j][k]='\0'; // the last argument was skipped if there was no space after it
+	fprintf(stderr,"\n");
 
-	fprintf(stdout,"cmd:%s\narg1:%s\narg2:%s\n",&cmd[0][0],&cmd[1][0],&cmd[2][0]);
-/*
-	uint8_t cmdEnd,valueEnd;
-	for(cmdEnd=0;cmdEnd<recvBuffSize;cmdEnd++)
-		if(recvBuff[cmdEnd] == ' ' || recvBuff[cmdEnd] == '\n' || recvBuff[cmdEnd] == '\0')
-			break; // cmdEnd-1 is the last char of the cmd
+	if(!strcmp("start",cmd[0].c_str()))
+		video.start(cmd[1].c_str(),atoi(cmd[2].c_str()));
 
-	recvBuff[cmdEnd] = '\0'; // Add a NULL char for "strcmp()"
-
-	if(cmdEnd < recvBuffSize) // else there is no parameter
-		for(valueEnd=cmdEnd+1;valueEnd<recvBuffSize;valueEnd++)
-			if(recvBuff[valueEnd] == ' ' || recvBuff[valueEnd] == '\n' || recvBuff[valueEnd] == '\0')
-				break; //  j-1 is the last char of the value
-
-	for(uint8_t j=0;j+cmdEnd+1<valueEnd;j++)
-		value[j] = recvBuff[cmdEnd+1+j];
-
-
-	if(!strcmp("start",recvBuff))
-	{
-//		video.start();
-	}
-
-	if(!strcmp("stop",recvBuff))
+	if(!strcmp("stop",cmd[0].c_str()))
 		video.stop();
 
-	if(!strcmp("reset",recvBuff))
+	if(!strcmp("reset",cmd[0].c_str()))
 		video.reset();
 
-	if(!strcmp("pause",recvBuff))
+	if(!strcmp("pause",cmd[0].c_str()))
 		video.toggle();
-*/
-//printf(stdout,"cmdEnd=%d value=%s valueEnd=%d",cmdEnd,*value,valueEnd);
-/*	switch(recvBuff[0])
-	{
-		case 'p': video.toggle();
-			  break;
-		case 'r': video.reset();
-			  break;
-		case 's': video.start("/home/EscapeRush/Video_Looper/tableau.mp4",20);
-			  break;
-		case 'q': video.stop();
-			  break;
-	}
-*/
+
+
 }
 
 void Delay(float delay)
 {
 	usleep((int)(delay*1000000));
-}
-
-
-void sigchld_handler(int s)
-{
-	int saved_errno = errno;
-	while(waitpid(-1,NULL,WNOHANG) > 0);
-	errno = saved_errno;
-}
-
-void *get_in_addr(struct sockaddr *sa)
-{
-	return &(((struct sockaddr_in*)sa)->sin_addr);
 }

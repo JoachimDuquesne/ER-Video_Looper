@@ -4,12 +4,6 @@
 
 VideoControls::VideoControls()
 {
-	if(pthread_create(&thread, NULL, monitoring, NULL) == -1) // Launching thread failed
-	{
-		perror("pthread_create");
-		exit(EXIT_FAILURE);
-	}
-
 // Implement singelton
 }
 
@@ -19,10 +13,7 @@ void VideoControls::start(char const * videofile, int videolength)
 {
 
 	if(pid >0) // A child already exist
-	{
 		stop();
-		//wait for child to terminate
-	}
 
 	pipe(pipeFD);	// Create a pipe between father and child process
 	pid = fork();	// Spawn child process
@@ -33,27 +24,42 @@ void VideoControls::start(char const * videofile, int videolength)
 		exit(EXIT_FAILURE);
 	}
 
+	// Father process
+	if(pid > 0)
+	{
+		startTime = time(NULL);
+		stopTime  = time(NULL);
+		videoLength = videolength;
+		close(pipeFD[0]); // closing the reading side of the pipe
+		isPlaying = true;
+		isFinished = false;
+		if(pthread_create(&thread, NULL, monitoring, NULL) == -1) // Launching thread failed
+		{
+			perror("pthread create");
+			exit(EXIT_FAILURE);
+		}
+	}
 
+	// Child process
 	if(pid == 0)
-	{ // We are in the child process : start omxxplayer
+	{
 		close(pipeFD[1]);	// closing write side of the pipe
 		dup2(pipeFD[0],STDIN_FILENO); // Linking pipe output to stdin (read by omxplayer)
 		char const * arguments[] = {"omxplayer","--no-osd","-o","hdmi",videofile,NULL};
+
 		if( execv("/usr/bin/omxplayer",const_cast<char**>(arguments)) == -1)
 		{
-			perror("execv omxplayer");
+			stop();
+//			isFinished = true;
+//			pthread_join(&thread,NULL); // wait for monitoring to finish
+ 			perror("execv omxplayer");
 			exit(EXIT_FAILURE);
 		}
 		// If the child reach here, that means we have send 'quit' to omxplayer to we kill the child process
+		// or omxplayer exited for another reason
+		stop();
 		exit(EXIT_SUCCESS);
 	}
-	// Only the father process can arrive here
-	startTime = time(NULL);
-	stopTime  = time(NULL);
-	videoLength = videolength;
-	close(pipeFD[0]); // closing the reading side of the pipe
-	isPlaying = true;
-	isFinished = false;
 }
 
 
@@ -64,6 +70,12 @@ void VideoControls::toggle()
 	if(pid <= 0) // We dont have a child running omxplayer so we can't toggle
 	{
 		fprintf(stdout,"No video playing, can't toggle\n");
+		return;
+	}
+	// If the file is paused and finished, don't toggle it
+	if(!isPlaying && isFinished)
+	{
+		fprintf(stdout,"File is finished\n");
 		return;
 	}
 
@@ -123,33 +135,56 @@ bool VideoControls::getIsFinished()
 
 void VideoControls::stop()
 {
+	isFinished = true;
+	pthread_join(thread,NULL);
+
+	if(pid <= 0)
+		return;
+
 	write(pipeFD[1],"q",1);
 	fsync(pipeFD[1]);
-
-	pid=0; // reset pid
+	wait(&childStatus);
+	pid=0;
 	isPlaying = false;
+	isFinished = true;
 	close(pipeFD[1]);
 }
 
 
 void * VideoControls::monitoring(void *arg)
 {
+	fprintf(stderr,"monitoring...\n");
+	sleep(1);
+
 	while(!isFinished)
 	{
-		if(isPlaying)
-			isFinished = (time(NULL) > startTime + videoLength) ? true : false ;
+//		if(waitpid(pid,&childStatus,WNOHANG|WUNTRACED) == pid) // omxplayer has NOT exited
+//			pid = 0;
+
+		fprintf(stderr,".");
+
+		if( isPlaying && (time(NULL) > startTime+videoLength) )
+		{
+			isFinished = true;
+			stop(); // pause the video
+			fprintf(stdout,"Video Length reach, stopping... \n");
+		}
 		sleep(1);
+
+		if (pid == 0)
+			isFinished = true;
 	}
-	fprintf(stdout,"Video Length reach, stopping... \n");
-	stop();
+
+	fprintf(stderr,"stoping monitoring...\n");
 	pthread_exit(NULL);
 }
 
-bool VideoControls::isPlaying;
-bool VideoControls::isFinished;
+volatile bool VideoControls::isPlaying;
+volatile bool VideoControls::isFinished;
 time_t VideoControls::startTime,VideoControls::stopTime;
 int VideoControls::pipeFD[2];
 pthread_t VideoControls::thread;
-pid_t VideoControls::pid;
+volatile pid_t VideoControls::pid;
+int VideoControls::childStatus;
 int VideoControls::videoLength;
 void * VideoControls::monitoring(void * arg);
