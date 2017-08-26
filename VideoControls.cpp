@@ -151,7 +151,7 @@ void VideoControls::stop()
 }
 
 
-void * VideoControls::monitoring(void *arg)
+void * VideoControls::monitoring(void * arg)
 {
 	fprintf(stderr,"monitoring...\n");
 	sleep(1);
@@ -187,4 +187,4 @@ pthread_t VideoControls::thread;
 volatile pid_t VideoControls::pid;
 int VideoControls::childStatus;
 int VideoControls::videoLength;
-void * VideoControls::monitoring(void * arg);
+//void * VideoControls::monitoring(void * arg);

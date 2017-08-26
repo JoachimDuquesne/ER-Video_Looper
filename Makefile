@@ -1,16 +1,18 @@
 
+PROGRAM_NAME = VideoTemplate
 
-PROGRAM_NAME = Video_looper
+ 
 SRC = $(wildcard *.cpp) 
 OBJ = $(SRC:.cpp=.o) 
 CC = g++
 
-LDFLAGS = -O0 -g3 -lwiringPi -I. -lpthread -lmosquitto
+CXXFLAGS = -std=c++11 -pthread -O0 -g  -I. 
+LDFLAGS = -lwiringPi -lmosquitto -pthread
 
 $(PROGRAM_NAME): $(OBJ)
-	$(CC) -o $@ $^ $(LDFLAGS)
+	$(CC) $(LDFLAGS) -o $@ $^ 
 	rm -f $(OBJ)
 
 .PHONY: clean
 clean:
-	rm -f $(OBJ) $(PROGRAM_NAME)
+	rm $(OBJ) $(PROGRAM_NAME)
