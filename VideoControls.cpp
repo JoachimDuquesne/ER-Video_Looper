@@ -50,7 +50,6 @@ void VideoControls::start(char const * videofile, int videolength)
 		if( execv("/usr/bin/omxplayer",const_cast<char**>(arguments)) == -1)
 		{
 			stop();
-//			isFinished = true;
 //			pthread_join(&thread,NULL); // wait for monitoring to finish
  			perror("execv omxplayer");
 			exit(EXIT_FAILURE);
@@ -98,6 +97,20 @@ void VideoControls::toggle()
 }
 
 
+void VideoControls::pause()
+{
+	if(isPlaying)
+		toggle();
+}
+
+
+void VideoControls::play()
+{
+	if(!isPlaying)
+		toggle();
+}
+
+
 // Restart the video
 void VideoControls::reset()
 {
@@ -111,14 +124,14 @@ void VideoControls::reset()
 
 	write(pipeFD[1],"i",1); // return to the previous chapter
 	fsync(pipeFD[1]);
-
+	sleep(1); // Give time to omxplayer to restart the video
+		  // ABSOLUTELY NEEDED !!!!
 	startTime = time(NULL); // reseting the chrono
 	stopTime  = time(NULL);
+	isFinished = false;
 
-
-	// If the video was paused before reseting, launch it
-	if(!isPlaying)
-	    toggle();
+	play();
+	sleep(1);
 }
 
 
@@ -135,9 +148,6 @@ bool VideoControls::getIsFinished()
 
 void VideoControls::stop()
 {
-	isFinished = true;
-	pthread_join(thread,NULL);
-
 	if(pid <= 0)
 		return;
 
@@ -148,31 +158,26 @@ void VideoControls::stop()
 	isPlaying = false;
 	isFinished = true;
 	close(pipeFD[1]);
+	pthread_join(thread,NULL);
 }
 
 
-void * VideoControls::monitoring(void * arg)
+void * VideoControls::monitoring(void *arg)
 {
 	fprintf(stderr,"monitoring...\n");
 	sleep(1);
 
-	while(!isFinished)
+	while(pid>0) // while omxplayer is running
 	{
-//		if(waitpid(pid,&childStatus,WNOHANG|WUNTRACED) == pid) // omxplayer has NOT exited
-//			pid = 0;
-
 		fprintf(stderr,".");
 
 		if( isPlaying && (time(NULL) > startTime+videoLength) )
 		{
 			isFinished = true;
-			stop(); // pause the video
-			fprintf(stdout,"Video Length reach, stopping... \n");
+			pause(); // pause the video
+			fprintf(stdout,"Video Length reach, pausing... \n");
 		}
 		sleep(1);
-
-		if (pid == 0)
-			isFinished = true;
 	}
 
 	fprintf(stderr,"stoping monitoring...\n");
@@ -187,4 +192,3 @@ pthread_t VideoControls::thread;
 volatile pid_t VideoControls::pid;
 int VideoControls::childStatus;
 int VideoControls::videoLength;
-//void * VideoControls::monitoring(void * arg);

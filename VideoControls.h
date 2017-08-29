@@ -3,9 +3,9 @@
 
 
 #include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstdint>
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -27,6 +27,8 @@ class VideoControls {
 	public:
 		VideoControls();
 		static void toggle();
+		static void pause();
+		static void play();
 		static void reset();
 		static void start(char const * videofile, int videolength);
 		static bool getIsPlaying();
