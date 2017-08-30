@@ -1,8 +1,7 @@
-
 PROGRAM_NAME = VideoTemplate
 
  
-SRC = $(wildcard *.cpp) 
+SRC = VideoButtons.cpp VideoControls.cpp Fitting_Room.cpp 
 OBJ = $(SRC:.cpp=.o) 
 CC = g++
 
