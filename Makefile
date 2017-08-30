@@ -1,7 +1,7 @@
-PROGRAM_NAME = VideoTemplate
+PROGRAM_NAME = Fitting_Room
 
  
-SRC = VideoButtons.cpp VideoControls.cpp Fitting_Room.cpp 
+SRC = VideoButtons.cpp VideoControls.cpp $(PROGRAM_NAME).cpp 
 OBJ = $(SRC:.cpp=.o) 
 CC = g++
 
