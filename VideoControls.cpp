@@ -180,7 +180,7 @@ void * VideoControls::monitoring(void *arg)
 		if( isPlaying && (time(NULL) > startTime+videoLength) )
 		{
 			isFinished = true;
-			//pause(); // pause the video
+			pause(); // pause the video
 			fprintf(stdout,"Video Length reach, pausing... \n");
 		}	
 	}
