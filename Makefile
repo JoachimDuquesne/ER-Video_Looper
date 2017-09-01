@@ -1,8 +1,9 @@
 PROGRAM_NAME = Fitting_Room
 
  
-SRC = VideoButtons.cpp VideoControls.cpp $(PROGRAM_NAME).cpp 
+SRC = VideoMQTT.cpp VideoButtons.cpp VideoControls.cpp $(PROGRAM_NAME).cpp 
 OBJ = $(SRC:.cpp=.o) 
+HEADERS = $(SRC:.cpp=.h)
 CC = g++
 
 CXXFLAGS = -std=c++11 -pthread -O0 -g  -I. 

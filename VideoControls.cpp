@@ -161,7 +161,6 @@ void VideoControls::stop()
 	isPlaying = false;
 	isFinished = true;
 	close(pipeFD[1]);
-	pthread_join(thread,NULL);
 }
 
 
@@ -170,17 +169,20 @@ void * VideoControls::monitoring(void *arg)
 	fprintf(stderr,"monitoring...\n");
 	sleep(1);
 
-	while(pid>0) // while omxplayer is running
+	while(1) // while omxplayer is running
 	{
+		sleep(1);
+	
+		if(pid<=0) // omxplayer not playing
+			continue;
 		fprintf(stderr,".");
 
 		if( isPlaying && (time(NULL) > startTime+videoLength) )
 		{
 			isFinished = true;
-			pause(); // pause the video
+			//pause(); // pause the video
 			fprintf(stdout,"Video Length reach, pausing... \n");
-		}
-		sleep(1);
+		}	
 	}
 
 	fprintf(stderr,"stoping monitoring...\n");
