@@ -122,9 +122,12 @@ void VideoControls::reset()
 
 	fprintf(stdout,"Reseting the video \n");
 
+	pause();
+	usleep(100000);
+
 	write(pipeFD[1],"i",1); // return to the previous chapter
 	fsync(pipeFD[1]);
-	sleep(1); // Give time to omxplayer to restart the video
+	usleep(100000); // Give time to omxplayer to restart the video
 		  // ABSOLUTELY NEEDED !!!!
 	startTime = time(NULL); // reseting the chrono
 	stopTime  = time(NULL);
