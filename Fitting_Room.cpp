@@ -23,32 +23,33 @@ int main(int argc, char *argv[])
 	VideoButtons button;
 	button.AddButton(TOGGLE_BUTTON,"Toggle");
 	button.AddButton(RESET_BUTTON,"Reset");
-
-	VideoControls::start("/home/metabaron/Video1.mp4",10);
+	VideoControls::Init();
+	
+	VideoControls::Start("/home/metabaron/Video1.mp4",10);
 	sleep(2);
-	VideoControls::reset();
+	VideoControls::Reset();
 	sleep(1);
-	VideoControls::pause();
+	VideoControls::Pause();
 
 	while(1)
 	{
 		if(button.HasBeenPushed(TOGGLE_BUTTON))
 		{
-			VideoControls::toggle();
+			VideoControls::Toggle();
 			button.printButton(TOGGLE_BUTTON);
 		}
 
 		if(button.HasBeenPushed(RESET_BUTTON))
 		{
-			VideoControls::reset();
-			VideoControls::pause();
+			VideoControls::Reset();
+			VideoControls::Pause();
 			button.printButton(RESET_BUTTON);
 		}
 
-		if(VideoControls::getIsFinished())
+		if(VideoControls::GetIsFinished())
 		{
-			//VideoControls::reset();
-			VideoControls::pause();
+			//VideoControls::Reset();
+			VideoControls::Pause();
 		}
 
 		usleep(100000);

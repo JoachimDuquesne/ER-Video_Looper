@@ -7,13 +7,19 @@ VideoControls::VideoControls()
 // Implement singelton
 }
 
+void VideoControls::Init()
+{
+		//if(thread != NULL) // Launching thread failed
+			thread = new std::thread(Monitoring);
+}
+
 
 // Start omxplayer
-void VideoControls::start(char const * videofile, int videolength)
+void VideoControls::Start(char const * videofile, int videolength)
 {
 
 	if(pid >0) // A child already exist
-		stop();
+		Stop();
 
 	pipe(pipeFD);	// Create a pipe between father and child process
 	pid = fork();	// Spawn child process
@@ -33,11 +39,6 @@ void VideoControls::start(char const * videofile, int videolength)
 		close(pipeFD[0]); // closing the reading side of the pipe
 		isPlaying = true;
 		isFinished = false;
-		if(pthread_create(&thread, NULL, monitoring, NULL) == -1) // Launching thread failed
-		{
-			perror("pthread create");
-			exit(EXIT_FAILURE);
-		}
 	}
 
 	// Child process
@@ -49,14 +50,12 @@ void VideoControls::start(char const * videofile, int videolength)
 
 		if( execv("/usr/bin/omxplayer",const_cast<char**>(arguments)) == -1)
 		{
-			stop();
-//			pthread_join(&thread,NULL); // wait for monitoring to finish
  			perror("execv omxplayer");
 			exit(EXIT_FAILURE);
 		}
 		// If the child reach here, that means we have send 'quit' to omxplayer to we kill the child process
 		// or omxplayer exited for another reason
-		stop();
+		Stop();
 		exit(EXIT_SUCCESS);
 	}
 }
@@ -64,7 +63,7 @@ void VideoControls::start(char const * videofile, int videolength)
 
 // Toggle between play and paused
 // Update isPlaying, startTime and stopTime
-void VideoControls::toggle()
+void VideoControls::Toggle()
 {
 	if(pid <= 0) // We dont have a child running omxplayer so we can't toggle
 	{
@@ -97,22 +96,22 @@ void VideoControls::toggle()
 }
 
 
-void VideoControls::pause()
+void VideoControls::Pause()
 {
 	if(isPlaying)
-		toggle();
+		Toggle();
 }
 
 
-void VideoControls::play()
+void VideoControls::Play()
 {
 	if(!isPlaying)
-		toggle();
+		Toggle();
 }
 
 
 // Restart the video
-void VideoControls::reset()
+void VideoControls::Reset()
 {
 	if(pid <= 0)
 	{
@@ -122,7 +121,7 @@ void VideoControls::reset()
 
 	fprintf(stdout,"Reseting the video \n");
 
-	pause();
+	Pause();
 	usleep(100000);
 
 	write(pipeFD[1],"i",1); // return to the previous chapter
@@ -133,27 +132,24 @@ void VideoControls::reset()
 	stopTime  = time(NULL);
 	isFinished = false;
 
-	play();
+	Play();
 	sleep(1);
 }
 
 
-bool VideoControls::getIsPlaying()
+bool VideoControls::GetIsPlaying()
 {
 	return isPlaying;
 }
 
-bool VideoControls::getIsFinished()
+bool VideoControls::GetIsFinished()
 {
 	return isFinished;
 }
 
 
-void VideoControls::stop()
+void VideoControls::Stop()
 {
-	if(pid <= 0)
-		return;
-
 	write(pipeFD[1],"q",1);
 	fsync(pipeFD[1]);
 	wait(&childStatus);
@@ -164,36 +160,34 @@ void VideoControls::stop()
 }
 
 
-void * VideoControls::monitoring(void *arg)
+void VideoControls::Monitoring()
 {
-	fprintf(stderr,"monitoring...\n");
+	fprintf(stdout,"monitoring...\n");
 	sleep(1);
 
 	while(1) // while omxplayer is running
 	{
 		sleep(1);
 	
-		if(pid<=0) // omxplayer not playing
+		if(pid<=0) // omxplayer not running
 			continue;
+			
 		fprintf(stderr,".");
 
 		if( isPlaying && (time(NULL) > startTime+videoLength) )
 		{
 			isFinished = true;
-			pause(); // pause the video
+			Pause(); // pause the video
 			fprintf(stdout,"Video Length reach, pausing... \n");
 		}	
 	}
-
-	fprintf(stderr,"stoping monitoring...\n");
-	pthread_exit(NULL);
 }
 
 volatile bool VideoControls::isPlaying;
 volatile bool VideoControls::isFinished;
 time_t VideoControls::startTime,VideoControls::stopTime;
 int VideoControls::pipeFD[2];
-pthread_t VideoControls::thread;
+std::thread * VideoControls::thread;
 volatile pid_t VideoControls::pid;
 int VideoControls::childStatus;
 int VideoControls::videoLength;

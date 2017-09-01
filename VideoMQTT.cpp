@@ -64,16 +64,16 @@ void VideoMQTT::ParseMessage(struct mosquitto * mosq, void * userdata, const str
 	fprintf(stderr,"\n");
 
 	if(!strcmp("start",cmd[0].c_str()))
-		VideoControls::start(cmd[1].c_str(),atoi(cmd[2].c_str()));
+		VideoControls::Start(cmd[1].c_str(),atoi(cmd[2].c_str()));
 
 	if(!strcmp("stop",cmd[0].c_str()))
-		VideoControls::stop();
+		VideoControls::Stop();
 
 	if(!strcmp("reset",cmd[0].c_str()))
-		VideoControls::reset();
+		VideoControls::Reset();
 
 	if(!strcmp("pause",cmd[0].c_str()))
-		VideoControls::toggle();
+		VideoControls::Toggle();
 }
 
 void VideoMQTT::SendMessage(const char * msg)

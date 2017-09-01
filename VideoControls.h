@@ -19,32 +19,33 @@
 #include <time.h>
 #include <signal.h>
 #include <errno.h>
-#include <pthread.h>
+#include <thread>
 
 
 
 class VideoControls {
 	public:
 		VideoControls();
-		static void toggle();
-		static void pause();
-		static void play();
-		static void reset();
-		static void start(char const * videofile, int videolength);
-		static bool getIsPlaying();
-		static bool getIsFinished();
-		static void stop();
+		static void Init();
+		static void Toggle();
+		static void Pause();
+		static void Play();
+		static void Reset();
+		static void Start(char const * videofile, int videolength);
+		static bool GetIsPlaying();
+		static bool GetIsFinished();
+		static void Stop();
 
 	private:
 		static volatile bool isPlaying; // keep track if we are playing or if the video is in pause
 		static volatile bool isFinished;
 		static time_t startTime,stopTime;
 		static int pipeFD[2];
-		static pthread_t thread;
+		static std::thread * thread;
 		static volatile pid_t pid;
 		static int childStatus;
 		static int videoLength;
-		static void * monitoring(void * arg);
+		static void Monitoring();
 
 };
 #endif /* _VIDEO_CONTROLS_H_ */

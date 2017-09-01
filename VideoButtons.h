@@ -30,6 +30,6 @@ class VideoButtons
 	
     private:
 	static void Monitoring(VideoButtons * This);
-	std::thread * f;
+	std::thread * thread;
 	std::list<ButtonTypeDef> buttonList;
 };

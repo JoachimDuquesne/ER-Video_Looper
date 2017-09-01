@@ -4,7 +4,7 @@
 VideoButtons::VideoButtons()
 {
 	wiringPiSetupGpio();
-	f = new std::thread(Monitoring,this);
+	thread = new std::thread(Monitoring,this);
 }
 
 void VideoButtons::AddButton(int gpioPin, char const * name)
