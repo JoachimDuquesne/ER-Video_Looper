@@ -10,7 +10,7 @@ LDFLAGS = -lwiringPi -lmosquitto -pthread
 
 $(PROGRAM_NAME): $(OBJ)
 	$(CC) $(LDFLAGS) -o $@ $^ 
-	rm -f $(OBJ)
+#	rm -f $(OBJ)
 
 .PHONY: clean
 clean:
