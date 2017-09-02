@@ -1,10 +1,12 @@
 
-systemctl --system disable Fitting_Room_Video_Looper.service
+SERVICE=Fitting_Room_Video_Looper.service
 
 
-systemctl stop Fitting_Room_Video_Looper.service
-systemctl delete Fitting_Room_Video_Looper.service
+
+systemctl --system disable $SERVICE
+systemctl stop $SERVICE
+systemctl delete $SERVICE
 
 systemctl daemon-reload
 
-rm -f /etc/systemd/system/Fitting_Room_Video_Looper.service
+rm -f /etc/systemd/system/$SERVICE
