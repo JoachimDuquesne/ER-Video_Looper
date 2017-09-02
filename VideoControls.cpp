@@ -134,6 +134,7 @@ void VideoControls::Reset()
 
 	Play();
 	sleep(1);
+	Pause();
 }
 
 

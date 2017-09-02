@@ -20,12 +20,12 @@
 int main(int argc, char *argv[])
 {
 	VideoMQTT mqtt(MQTT_PORT,MQTT_BROKER_IP,MQTT_TOPIC,QOS);
-	VideoButtons button;
+	VideoButtons button;jou
 	button.AddButton(TOGGLE_BUTTON,"Toggle");
 	button.AddButton(RESET_BUTTON,"Reset");
 	VideoControls::Init();
 	
-	VideoControls::Start("/home/metabaron/Video1.mp4",10);
+	VideoControls::Start("/home/metabaron/tableau.mp4",90);
 	sleep(2);
 	VideoControls::Reset();
 	sleep(1);
@@ -42,7 +42,6 @@ int main(int argc, char *argv[])
 		if(button.HasBeenPushed(RESET_BUTTON))
 		{
 			VideoControls::Reset();
-			VideoControls::Pause();
 			button.printButton(RESET_BUTTON);
 		}
 
