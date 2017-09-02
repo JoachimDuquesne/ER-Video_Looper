@@ -20,7 +20,7 @@
 int main(int argc, char *argv[])
 {
 	VideoMQTT mqtt(MQTT_PORT,MQTT_BROKER_IP,MQTT_TOPIC,QOS);
-	VideoButtons button;jou
+	VideoButtons button;
 	button.AddButton(TOGGLE_BUTTON,"Toggle");
 	button.AddButton(RESET_BUTTON,"Reset");
 	VideoControls::Init();
