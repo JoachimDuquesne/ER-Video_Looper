@@ -26,9 +26,11 @@ int main(int argc, char *argv[])
 	VideoControls::Init();
 	
 	VideoControls::Start("/home/metabaron/tableau.mp4",90);
+	sleep(5);
+	VideoControls::Stop();  // Necessary when using systemd for startup
 	sleep(2);
-	VideoControls::Reset();
-	sleep(1);
+	VideoControls::Start("/home/metabaron/tableau.mp4",90);
+	sleep(2);
 	VideoControls::Pause();
 
 	while(1)
@@ -47,7 +49,6 @@ int main(int argc, char *argv[])
 
 		if(VideoControls::GetIsFinished())
 		{
-			//VideoControls::Reset();
 			VideoControls::Pause();
 		}
 
