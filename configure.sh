@@ -21,7 +21,7 @@ echo "Type=idle"                                          >> $SERVICE
 echo "ExecStart=$PROGRAM_DIR/$PROGRAM"                    >> $SERVICE
 echo ""                                                   >> $SERVICE
 echo "[Install]"                                          >> $SERVICE
-echo "WantedBy=multi-user.target"                         >> $SERVICE
+echo "WantedBy=getty.target"                              >> $SERVICE
 
 systemctl daemon-reload
 systemctl enable $SERVICE
