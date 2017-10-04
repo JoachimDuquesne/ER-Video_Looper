@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 	
 	while(!VideoControls::Init());
 	
-	VideoControls::Start("/home/metabaron/tableau.mp4");
+//	VideoControls::Start("/home/metabaron/tableau.mp4");
 
 	
 	//VideoControls::Play();
