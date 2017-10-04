@@ -64,7 +64,12 @@ void VideoMQTT::ParseMessage(struct mosquitto * mosq, void * userdata, const str
 	fprintf(stderr,"\n");
 
 	if(!strcmp("start",cmd[0].c_str()))
-		VideoControls::Start(cmd[1].c_str(),atoi(cmd[2].c_str()));
+		if(i == 2) // We need one argument
+			VideoControls::Start(cmd[1].c_str());
+		
+	if(!strcmp("setPosition",cmd[0].c_str()))
+		if(i == 3) // We need two argument
+			VideoControls::SetPosition(atoi(cmd[1].c_str()),atoi(cmd[2].c_str()));
 
 	if(!strcmp("stop",cmd[0].c_str()))
 		VideoControls::Stop();
