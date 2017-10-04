@@ -1,6 +1,8 @@
  #include <stdint.h>
 #include <stdlib.h>
 //#include <dbus/dbus.h>
+#include <QCoreApplication>
+#include <QtDBus>
 
 #include "VideoControls.h"
 #include "VideoButtons.h"
@@ -19,38 +21,43 @@
 
 int main(int argc, char *argv[])
 {
+	
+	QCoreApplication app(argc, argv);
+	
 	VideoMQTT mqtt(MQTT_PORT,MQTT_BROKER_IP,MQTT_TOPIC,QOS);
 	VideoButtons button;
 	button.AddButton(TOGGLE_BUTTON,"Toggle");
 	button.AddButton(RESET_BUTTON,"Reset");
-	VideoControls::Init();
 	
-	VideoControls::Start("/home/metabaron/tableau.mp4",90);
-	sleep(5);
-	VideoControls::Stop();  // Necessary when using systemd for startup
+	while(!VideoControls::Init());
+	
+	VideoControls::Start("/home/metabaron/tableau.mp4");
+
+	
+	//VideoControls::Play();
+	
+/*	VideoControls::Stop();  // Necessary when using systemd for startup
 	sleep(2);
-	VideoControls::Start("/home/metabaron/tableau.mp4",90);
+	VideoControls::Start("/home/metabaron/tableau.mp4");
 	sleep(2);
 	VideoControls::Pause();
+*/
 
 	while(1)
 	{
 		if(button.HasBeenPushed(TOGGLE_BUTTON))
 		{
 			VideoControls::Toggle();
-			button.printButton(TOGGLE_BUTTON);
+			//button.printButton(TOGGLE_BUTTON);
 		}
 
 		if(button.HasBeenPushed(RESET_BUTTON))
 		{
-			VideoControls::Reset();
-			button.printButton(RESET_BUTTON);
+			VideoControls::SetPosition(8,15);
+			VideoControls::Pause();
+			//button.printButton(RESET_BUTTON);
 		}
 
-		if(VideoControls::GetIsFinished())
-		{
-			VideoControls::Pause();
-		}
 
 		usleep(100000);
 	}
