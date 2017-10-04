@@ -12,8 +12,9 @@
 #define RESET_BUTTON	21
 
 #define MQTT_PORT	1883
-//#define MQTT_BROKER_IP	"192.168.0.50"  // At home
-#define MQTT_BROKER_IP	"127.0.0.1"	// Loopback
+#define MQTT_BROKER_IP	"192.168.1.100"  // At EscapeRush
+//#define MQTT_BROKER_IP "192.168.0.5"	// At home
+//#define MQTT_BROKER_IP	"127.0.0.1"	// Loopback
 //#define MQTT_BROKER_IP	"192.168.43.1"	 // Android hotspot
 #define MQTT_TOPIC	"VideoControlTopic"
 #define QOS			2
@@ -45,7 +46,7 @@ int main(int argc, char *argv[])
 
 	while(1)
 	{
-		if(button.HasBeenPushed(TOGGLE_BUTTON))
+/*		if(button.HasBeenPushed(TOGGLE_BUTTON))
 		{
 			VideoControls::Toggle();
 			//button.printButton(TOGGLE_BUTTON);
@@ -58,7 +59,7 @@ int main(int argc, char *argv[])
 			//button.printButton(RESET_BUTTON);
 		}
 
-
+*/
 		usleep(100000);
 	}
 
