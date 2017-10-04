@@ -37,7 +37,7 @@
 class VideoControls {
 	public:
 		VideoControls(){};
-		static void Init();
+		static bool Init();
 
 		static void Start(char const * videofile);
 		static void Stop();

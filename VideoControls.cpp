@@ -29,6 +29,7 @@ bool VideoControls::Init()
     error = OMXPLAYER_OFF;
     status = NO_ERROR; // if error != NO_ERROR : status must be disregarded
 	thread = new std::thread(Monitoring);  // Constructor are called before entering main()... Threads must be created later..
+	return true;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -52,7 +53,8 @@ void VideoControls::Start(char const * videofile)
 	// Child process
 	if(pid == 0)
 	{
-		char const * arguments[] = {"omxplayer","--no-osd","-o","hdmi","--aspect-mode","fill",videofile,NULL};
+//		char const * arguments[] = {"omxplayer","--no-osd","-o","hdmi","--aspect-mode","fill",videofile,NULL};
+		char const * arguments[] = {"omxplayer","--no-osd","--display=5","--aspect-mode","fill",videofile,NULL};
 
 		if( execv("/usr/bin/omxplayer",const_cast<char**>(arguments)) == -1)
 		{
@@ -68,7 +70,7 @@ void VideoControls::Start(char const * videofile)
 	}
 	
 	// As from here, we are in the father process
-	sleep(2); // Need to let omxplayer start or we wont find it on DBus
+	sleep(5); // Need to let omxplayer start or we wont find it on DBus
 	
 	if(error == UNKNOWN_ERROR) // omxplayer crashed
 	{
@@ -99,8 +101,11 @@ void VideoControls::Start(char const * videofile)
 	}
 	
 	if(error != OMXPLAYER_OFF)
+	{
+		kill(pid,SIGINT);
 		exit(EXIT_FAILURE);
-	
+	}
+
 	error = NO_ERROR;
 	
 	SetPosition(0,0);
