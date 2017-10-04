@@ -2,26 +2,45 @@
 #include "VideoControls.h"
 
 
-VideoControls::VideoControls()
-{
-// Implement singelton
+bool VideoControls::Init()
+{	
+	setenv("OMXPLAYER_DBUS_ADDR", "\"/tmp/omxplayerdbus.metabaron\"",    true);
+	setenv("OMXPLAYER_DBUS_PID",  "\"/tmp/omxplayerdbus.metabaron.pid\"",true);
+	
+	std::ifstream ifs("/tmp/omxplayerdbus.metabaron");
+	std::string content;
+	getline(ifs,content);
+	setenv("DBUS_SESSION_BUS_ADDRESS", content.c_str(), true);
+	
+	std::ifstream ifs2("/tmp/omxplayerdbus.metabaron.pid");
+	std::string content2;
+	getline(ifs2,content2);
+	setenv("DBUS_SESSION_BUS_PID", content2.c_str(), true);
+
+	setenv("DISPLAY", ":0", true); // X must be running
+	
+	dbus  = new QDBusConnection(QDBusConnection::sessionBus());
+	if (!dbus->isConnected())
+	{
+		qCritical() << "Cannot connect to the D-Bus session bus.";
+    	qCritical() << "X must be running...";
+    	return false;
+    }
+    error = OMXPLAYER_OFF;
+    status = NO_ERROR; // if error != NO_ERROR : status must be disregarded
+	thread = new std::thread(Monitoring);  // Constructor are called before entering main()... Threads must be created later..
 }
 
-void VideoControls::Init()
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void VideoControls::Start(char const * videofile)
 {
-		//if(thread != NULL) // Launching thread failed
-			thread = new std::thread(Monitoring);
-}
-
-
-// Start omxplayer
-void VideoControls::Start(char const * videofile, int videolength)
-{
-
 	if(pid >0) // A child already exist
 		Stop();
-
-	pipe(pipeFD);	// Create a pipe between father and child process
+		
+	if(error != OMXPLAYER_OFF)
+		exit(EXIT_FAILURE);
+	
 	pid = fork();	// Spawn child process
 
 	if(pid == -1)
@@ -30,165 +49,213 @@ void VideoControls::Start(char const * videofile, int videolength)
 		exit(EXIT_FAILURE);
 	}
 
-	// Father process
-	if(pid > 0)
-	{
-		startTime = time(NULL);
-		stopTime  = time(NULL);
-		videoLength = videolength;
-		close(pipeFD[0]); // closing the reading side of the pipe
-		isPlaying = true;
-		isFinished = false;
-	}
-
 	// Child process
 	if(pid == 0)
 	{
-		close(pipeFD[1]);	// closing write side of the pipe
-		dup2(pipeFD[0],STDIN_FILENO); // Linking pipe output to stdin (read by omxplayer)
-		char const * arguments[] = {"omxplayer","--no-osd","-o","hdmi",videofile,NULL};
+		char const * arguments[] = {"omxplayer","--no-osd","-o","hdmi","--aspect-mode","fill",videofile,NULL};
 
 		if( execv("/usr/bin/omxplayer",const_cast<char**>(arguments)) == -1)
 		{
  			perror("execv omxplayer");
 			exit(EXIT_FAILURE);
 		}
-		// If the child reach here, that means we have send 'quit' to omxplayer to we kill the child process
-		// or omxplayer exited for another reason
-		Stop();
-		exit(EXIT_SUCCESS);
+		
+		// Should never reach here !!
+		error = UNKNOWN_ERROR; // Error unknown
+		fprintf(stdout,"OMXPlayer crashed\n");
+		
+		exit(EXIT_FAILURE);
 	}
-}
-
-
-// Toggle between play and paused
-// Update isPlaying, startTime and stopTime
-void VideoControls::Toggle()
-{
-	if(pid <= 0) // We dont have a child running omxplayer so we can't toggle
+	
+	// As from here, we are in the father process
+	sleep(2); // Need to let omxplayer start or we wont find it on DBus
+	
+	if(error == UNKNOWN_ERROR) // omxplayer crashed
 	{
-		fprintf(stdout,"No video playing, can't toggle\n");
-		return;
+		fprintf(stdout,"OMXPlayer crashed at startup\n");
+		exit(EXIT_FAILURE);
 	}
-	// If the file is paused and finished, don't toggle it
-	if(!isPlaying && isFinished)
+		
+	OMXRootIface = new QDBusInterface("org.mpris.MediaPlayer2.omxplayer","/org/mpris/MediaPlayer2","org.mpris.MediaPlayer2");
+	OMXPlayerIface = new QDBusInterface("org.mpris.MediaPlayer2.omxplayer","/org/mpris/MediaPlayer2","org.mpris.MediaPlayer2.Player");
+	OMXPropertiesIface = new QDBusInterface("org.mpris.MediaPlayer2.omxplayer","/org/mpris/MediaPlayer2","org.freedesktop.DBus.Properties");
+	
+	if (!OMXPlayerIface->isValid())
 	{
-		fprintf(stdout,"File is finished\n");
-		return;
+		qCritical() << "OMXPlayerIface NOT connected. "  << OMXPlayerIface->lastError() << "\n";
+		error = DBUS_FAILED;
 	}
-
-	write(pipeFD[1],"p",1);
-	fsync(pipeFD[1]);
-
-	if(isPlaying)
-		stopTime = time(NULL); // if video was playing and is being paused, note the stopTime
-	else // We compute a new startTime disregarding the pause
-		startTime = time(NULL) - (stopTime-startTime);
-
-
-	isPlaying = !isPlaying;
-
-	if(isPlaying)
-		fprintf(stdout,"play\n");
-	else
-	 	fprintf(stdout,"pause\n");
-
+			
+	if (!OMXPropertiesIface->isValid())
+	{
+		qCritical() << "OMXPropertiesIface NOT connected. "  << OMXPropertiesIface->lastError() << "\n";
+		error = DBUS_FAILED;
+	}
+	
+	if (!OMXRootIface->isValid())
+	{
+		qCritical() << "OMXRootIface NOT connected. "  << OMXRootIface->lastError() << "\n";
+		error = DBUS_FAILED;
+	}
+	
+	if(error != OMXPLAYER_OFF)
+		exit(EXIT_FAILURE);
+	
+	error = NO_ERROR;
+	
+	SetPosition(0,0);
 }
 
-
-void VideoControls::Pause()
+void VideoControls::Stop()
 {
-	if(isPlaying)
-		Toggle();
+	OMXPlayerIface->call(QDBus::Block,"Stop");
+	error = OMXPLAYER_OFF;
+	wait(&childStatus);
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void VideoControls::Play()
 {
-	if(!isPlaying)
-		Toggle();
-}
-
-
-// Restart the video
-void VideoControls::Reset()
-{
-	if(pid <= 0)
+	if(error != NO_ERROR) 
 	{
-		fprintf(stdout,"No video playing, can't reset\n");
+		fprintf(stdout,"Error :%d\n",status);
 		return;
 	}
 
-	fprintf(stdout,"Reseting the video \n");
+	if(position > endPosition)
+	{
+		fprintf(stdout,"Video end reached\n");
+		return;
+	}
+		
+	if(status == OMXPLAYER_PLAYING)
+		fprintf(stdout,"Video already Playing\n");
+		
+	OMXPlayerIface->call(QDBus::Block,"Play");
+}
 
-	Pause();
-	usleep(100000);
+void VideoControls::Pause()
+{
+	if(error != NO_ERROR) 
+	{
+		fprintf(stdout,"Error :%d\n",status);
+		return;
+	}
+	
+	if(status == OMXPLAYER_PAUSED)	
+		fprintf(stdout,"Video already plaused\n");
 
-	write(pipeFD[1],"i",1); // return to the previous chapter
-	fsync(pipeFD[1]);
-	usleep(100000); // Give time to omxplayer to restart the video
-		  // ABSOLUTELY NEEDED !!!!
-	startTime = time(NULL); // reseting the chrono
-	stopTime  = time(NULL);
-	isFinished = false;
+	OMXPlayerIface->call(QDBus::Block,"Pause");
+}
+
+void VideoControls::Toggle()
+{
+	if(status == OMXPLAYER_PLAYING)
+		Pause();
+	else
+		Play();
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void VideoControls::SetPosition(int64_t pos, int64_t length)
+{
+	if(error != NO_ERROR) 
+	{
+		fprintf(stdout,"Error :%d\n",status);
+		return;
+	}
+	
+	if(status == OMXPLAYER_PLAYING)
+		Pause();
+		
+	OMXPlayerIface->call(QDBus::Block,"SetPosition",pos*1000000); // OMXplayer expect time in microseconds, we use seconds
+	endPosition = pos + length;
 
 	Play();
-	sleep(1);
-	Pause();
+	usleep(1000000);
 }
+
+void VideoControls::Reset()
+{
+	SetPosition(8,10);
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 bool VideoControls::GetIsPlaying()
 {
-	return isPlaying;
+	return (status == OMXPLAYER_PLAYING);
 }
 
-bool VideoControls::GetIsFinished()
-{
-	return isFinished;
-}
-
-
-void VideoControls::Stop()
-{
-	write(pipeFD[1],"q",1);
-	fsync(pipeFD[1]);
-	wait(&childStatus);
-	pid=0;
-	isPlaying = false;
-	isFinished = true;
-	close(pipeFD[1]);
-}
-
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void VideoControls::Monitoring()
 {
 	fprintf(stdout,"monitoring...\n");
-	sleep(1);
-
+	
+	QDBusReply<qlonglong> Pos;
+	QDBusReply<QString> Playing;
+	uint32_t i=0;
 	while(1) // while omxplayer is running
 	{
-		sleep(1);
-	
-		if(pid<=0) // omxplayer not running
-			continue;
-			
-		fprintf(stderr,".");
-
-		if( isPlaying && (time(NULL) > startTime+videoLength) )
+		usleep(100000);
+		i++;
+		
+		if(error != NO_ERROR)
 		{
-			isFinished = true;
-			Pause(); // pause the video
-			fprintf(stdout,"Video Length reach, pausing... \n");
-		}	
+			if(i%10==0)
+				fprintf(stderr,"x"); // error has been set
+			continue;
+		}
+		
+		Playing = OMXPropertiesIface->call(QDBus::Block,"Get","org.mpris.MediaPlayer2.Player", "PlaybackStatus");
+		
+		if(!strcmp(qPrintable(Playing.value()),"Playing"))
+			status = OMXPLAYER_PLAYING;
+		else if(!strcmp(qPrintable(Playing.value()),"Paused"))
+			status = OMXPLAYER_PAUSED;
+		else
+			error = DBUS_FAILED;
+
+		Pos = OMXPropertiesIface->call(QDBus::Block,"Get","org.mpris.MediaPlayer2.Player", "Position");
+		position = (int)((qlonglong)Pos.value()/1000000);
+		
+		
+		if(i%10==0)
+		{
+			printf("status:%s\n",qPrintable(Playing.value()));
+			printf("time:%d/%d\n",position,endPosition);
+		}
+		
+		
+		if(position >= endPosition)
+			if(status == OMXPLAYER_PLAYING)
+			{
+				Pause();
+				fprintf(stdout,"Video Length reach, pausing... \n");
+			}
+
+//		if(i%10==0)
+//			fprintf(stdout,"."); // Proof of thread running
 	}
 }
 
-volatile bool VideoControls::isPlaying;
-volatile bool VideoControls::isFinished;
-time_t VideoControls::startTime,VideoControls::stopTime;
-int VideoControls::pipeFD[2];
+volatile int VideoControls::error;
+volatile int VideoControls::status;
+
+volatile int VideoControls::position;
+int VideoControls::endPosition;
+
 std::thread * VideoControls::thread;
-volatile pid_t VideoControls::pid;
+volatile pid_t VideoControls::pid=0;
 int VideoControls::childStatus;
-int VideoControls::videoLength;
+
+QDBusConnection * VideoControls::dbus;
+QDBusInterface * VideoControls::OMXRootIface;
+QDBusInterface * VideoControls::OMXPlayerIface;
+QDBusInterface * VideoControls::OMXPropertiesIface;
+
+
