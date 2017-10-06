@@ -23,19 +23,21 @@
 
 int main(int argc, char *argv[])
 {
-	
+	sleep(5);
+
 	QCoreApplication app(argc, argv);
+	//while(!VideoControls::Init())
+	//	usleep(100000);
 	
 	VideoMQTT mqtt(MQTT_PORT,MQTT_BROKER_IP,MQTT_TOPIC,QOS);
-	VideoButtons button;
-	button.AddButton(TOGGLE_BUTTON,"Toggle");
-	button.AddButton(RESET_BUTTON,"Reset");
+//	VideoButtons button;
+//	button.AddButton(TOGGLE_BUTTON,"Toggle");
+//	button.AddButton(RESET_BUTTON,"Reset");
 	
-	while(!VideoControls::Init())
-		usleep(100000);
+
 	
-//	VideoControls::Start(VIDEOFILE);
-//VideoControls::Stop();
+	//VideoControls::Start(VIDEOFILE);
+	//VideoControls::Stop();
 	
 	//VideoControls::Play();
 	

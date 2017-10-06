@@ -1,0 +1,15 @@
+
+[Unit]
+Description=Fitting-room video looper
+Requires=network-online.target
+
+[Service]
+Type=idle
+ExecStart=/home/pi/Video_Looper/Fitting_Room
+User=pi
+Group=pi
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

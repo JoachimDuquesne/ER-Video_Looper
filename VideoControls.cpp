@@ -4,8 +4,8 @@
 
 bool VideoControls::Init()
 {	
-	setenv("OMXPLAYER_DBUS_ADDR", "\"/tmp/omxplayerdbus.pi\"",    true);
-	setenv("OMXPLAYER_DBUS_PID",  "\"/tmp/omxplayerdbus.pi.pid\"",true);
+	setenv("OMXPLAYER_DBUS_ADDR", "\"/tmp/omxplayerdbus.pi\"", true);
+	setenv("OMXPLAYER_DBUS_PID",  "\"/tmp/omxplayerdbus.pi.pid\"", true);
 	
 	std::ifstream ifs("/tmp/omxplayerdbus.pi");
 	std::string content;
@@ -22,8 +22,7 @@ bool VideoControls::Init()
 	dbus  = new QDBusConnection(QDBusConnection::sessionBus());
 	if (!dbus->isConnected())
 	{
-		qCritical() << "Cannot connect to the D-Bus session bus.";
-    	qCritical() << "X must be running...";
+		qCritical() << "Cannot connect to the D-Bus session bus."  << dbus->lastError() << "\n";
     	return false;
     }
     error = OMXPLAYER_OFF;
@@ -71,7 +70,7 @@ void VideoControls::Start(char const * videofile)
 	
 	// As from here, we are in the father process
 	sleep(5); // Need to let omxplayer start or we wont find it on DBus
-	
+	VideoControls::Init();
 	if(error == UNKNOWN_ERROR) // omxplayer crashed
 	{
 		fprintf(stdout,"OMXPlayer crashed at startup\n");
@@ -248,8 +247,8 @@ void VideoControls::Monitoring()
 	}
 }
 
-volatile int VideoControls::error;
-volatile int VideoControls::status;
+volatile int VideoControls::error = OMXPLAYER_OFF;;
+volatile int VideoControls::status = OMXPLAYER_OFF;
 
 volatile int VideoControls::position;
 int VideoControls::endPosition;
