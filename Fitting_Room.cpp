@@ -1,6 +1,5 @@
  #include <stdint.h>
 #include <stdlib.h>
-//#include <dbus/dbus.h>
 #include <QCoreApplication>
 #include <QtDBus>
 
@@ -12,13 +11,15 @@
 #define RESET_BUTTON	21
 
 #define MQTT_PORT	1883
-#define MQTT_BROKER_IP	"192.168.1.100"  // At EscapeRush
+//#define MQTT_BROKER_IP	"192.168.1.100"  // At EscapeRush
 //#define MQTT_BROKER_IP "192.168.0.5"	// At home
-//#define MQTT_BROKER_IP	"127.0.0.1"	// Loopback
+#define MQTT_BROKER_IP	"127.0.0.1"	// Loopback
 //#define MQTT_BROKER_IP	"192.168.43.1"	 // Android hotspot
 #define MQTT_TOPIC	"VideoControlTopic"
 #define QOS			2
 
+#define VIDEOFILE "/home/metabaron/tableau.mp4"
+//#define VIDEOFILE "/home/EscapeRush/tableau.mp4"
 
 int main(int argc, char *argv[])
 {
@@ -30,10 +31,11 @@ int main(int argc, char *argv[])
 	button.AddButton(TOGGLE_BUTTON,"Toggle");
 	button.AddButton(RESET_BUTTON,"Reset");
 	
-	while(!VideoControls::Init());
+	while(!VideoControls::Init())
+		usleep(100000);
 	
-//	VideoControls::Start("/home/metabaron/tableau.mp4");
-
+//	VideoControls::Start(VIDEOFILE);
+//VideoControls::Stop();
 	
 	//VideoControls::Play();
 	
