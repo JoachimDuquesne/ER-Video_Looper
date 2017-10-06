@@ -53,8 +53,8 @@ void VideoControls::Start(char const * videofile)
 	// Child process
 	if(pid == 0)
 	{
-//		char const * arguments[] = {"omxplayer","--no-osd","-o","hdmi","--aspect-mode","fill",videofile,NULL};
-		char const * arguments[] = {"omxplayer","--no-osd","--display=5","--aspect-mode","fill",videofile,NULL};
+		char const * arguments[] = {"omxplayer","--no-osd","-o","hdmi","--aspect-mode","fill",videofile,NULL};
+//		char const * arguments[] = {"omxplayer","--no-osd","--display=5","--aspect-mode","fill",videofile,NULL};
 
 		if( execv("/usr/bin/omxplayer",const_cast<char**>(arguments)) == -1)
 		{
@@ -102,7 +102,7 @@ void VideoControls::Start(char const * videofile)
 	
 	if(error != OMXPLAYER_OFF)
 	{
-		kill(pid,SIGINT);
+		kill(pid,SIGTERM);
 		exit(EXIT_FAILURE);
 	}
 
@@ -212,7 +212,7 @@ void VideoControls::Monitoring()
 		if(error != NO_ERROR)
 		{
 			if(i%10==0)
-				fprintf(stderr,"x"); // error has been set
+				fprintf(stderr,"err:%d",error); // error has been set
 			continue;
 		}
 		
