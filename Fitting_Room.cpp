@@ -11,9 +11,9 @@
 #define RESET_BUTTON	21
 
 #define MQTT_PORT	1883
-//#define MQTT_BROKER_IP	"192.168.1.100"  // At EscapeRush
+#define MQTT_BROKER_IP	"192.168.1.100"  // At EscapeRush
 //#define MQTT_BROKER_IP "192.168.0.5"	// At home
-#define MQTT_BROKER_IP	"127.0.0.1"	// Loopback
+//#define MQTT_BROKER_IP	"127.0.0.1"	// Loopback
 //#define MQTT_BROKER_IP	"192.168.43.1"	 // Android hotspot
 #define MQTT_TOPIC	"VideoControlTopic"
 #define QOS			2

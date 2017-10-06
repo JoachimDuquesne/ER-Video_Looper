@@ -4,15 +4,15 @@
 
 bool VideoControls::Init()
 {	
-	setenv("OMXPLAYER_DBUS_ADDR", "\"/tmp/omxplayerdbus.metabaron\"",    true);
-	setenv("OMXPLAYER_DBUS_PID",  "\"/tmp/omxplayerdbus.metabaron.pid\"",true);
+	setenv("OMXPLAYER_DBUS_ADDR", "\"/tmp/omxplayerdbus.pi\"",    true);
+	setenv("OMXPLAYER_DBUS_PID",  "\"/tmp/omxplayerdbus.pi.pid\"",true);
 	
-	std::ifstream ifs("/tmp/omxplayerdbus.metabaron");
+	std::ifstream ifs("/tmp/omxplayerdbus.pi");
 	std::string content;
 	getline(ifs,content);
 	setenv("DBUS_SESSION_BUS_ADDRESS", content.c_str(), true);
 	
-	std::ifstream ifs2("/tmp/omxplayerdbus.metabaron.pid");
+	std::ifstream ifs2("/tmp/omxplayerdbus.pi.pid");
 	std::string content2;
 	getline(ifs2,content2);
 	setenv("DBUS_SESSION_BUS_PID", content2.c_str(), true);
