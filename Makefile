@@ -13,8 +13,8 @@ MAKEFILE      = Makefile
 CC            = gcc
 CXX           = g++
 DEFINES       = -DQT_DEBUG -DQT_DBUS_LIB -DQT_CORE_LIB
-CFLAGS        = -pipe -g -O2 -Wall -W -D_REENTRANT -fPIE $(DEFINES)
-CXXFLAGS      = -pipe -g -O2 -std=c++0x -Wall -W -D_REENTRANT -fPIE $(DEFINES)
+CFLAGS        = -pipe -g -O0 -Wall -W -D_REENTRANT -fPIE $(DEFINES)
+CXXFLAGS      = -pipe -g -O0 -std=c++0x -Wall -W -D_REENTRANT -fPIE $(DEFINES)
 INCPATH       = -I/usr/lib/arm-linux-gnueabihf/qt5/mkspecs/linux-g++ -I. -I. -isystem /usr/include/arm-linux-gnueabihf/qt5 -isystem /usr/include/arm-linux-gnueabihf/qt5/QtDBus -isystem /usr/include/arm-linux-gnueabihf/qt5/QtCore -I.
 LINK          = g++
 LFLAGS        = -Wl,-O1

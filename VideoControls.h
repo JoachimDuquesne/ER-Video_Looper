@@ -33,6 +33,7 @@
 #define OMXPLAYER_PLAYING	1
 #define OMXPLAYER_PAUSED	2
 
+#define DBUS_DELAY      10000
 
 class VideoControls {
 	public:
@@ -58,9 +59,10 @@ class VideoControls {
 		
 		static volatile int status;
 		static volatile int error;
+		static volatile bool dbus_active;
 		
 		static volatile int position;
-		static int endPosition;
+		static volatile int endPosition;
 		
 		static std::thread * thread;
 		static volatile pid_t pid;

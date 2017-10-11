@@ -27,6 +27,7 @@ bool VideoControls::Init()
     }
     error = OMXPLAYER_OFF;
     status = NO_ERROR; // if error != NO_ERROR : status must be disregarded
+    dbus_active=true; // So by default, monitoring doesnt send command to DBUS
 	thread = new std::thread(Monitoring);  // Constructor are called before entering main()... Threads must be created later..
 	return true;
 }
@@ -69,7 +70,7 @@ void VideoControls::Start(char const * videofile)
 	}
 	
 	// As from here, we are in the father process
-	sleep(5); // Need to let omxplayer start or we wont find it on DBus
+	sleep(2); // Need to let omxplayer start or we wont find it on DBus
 	VideoControls::Init();
 	if(error == UNKNOWN_ERROR) // omxplayer crashed
 	{
@@ -106,14 +107,20 @@ void VideoControls::Start(char const * videofile)
 	}
 
 	error = NO_ERROR;
-	
-	SetPosition(0,0);
+	dbus_active=false;
+	SetPosition(0,1);
+    SetPosition(0,1);
 }
 
 void VideoControls::Stop()
 {
-	OMXPlayerIface->call(QDBus::Block,"Stop");
-	error = OMXPLAYER_OFF;
+	while(dbus_active);
+    dbus_active=true;
+    OMXPlayerIface->call(QDBus::Block,"Stop");
+    usleep(DBUS_DELAY);
+    dbus_active=false;
+	
+    error = OMXPLAYER_OFF;
 	wait(&childStatus);
 }
 
@@ -135,8 +142,12 @@ void VideoControls::Play()
 		
 	if(status == OMXPLAYER_PLAYING)
 		fprintf(stdout,"Video already Playing\n");
-		
+
+    while(dbus_active);
+    dbus_active=true;
 	OMXPlayerIface->call(QDBus::Block,"Play");
+    usleep(DBUS_DELAY);
+    dbus_active=false;
 }
 
 void VideoControls::Pause()
@@ -149,8 +160,13 @@ void VideoControls::Pause()
 	
 	if(status == OMXPLAYER_PAUSED)	
 		fprintf(stdout,"Video already plaused\n");
-
+    
+    
+	while(dbus_active);
+    dbus_active=true;
 	OMXPlayerIface->call(QDBus::Block,"Pause");
+    usleep(DBUS_DELAY);
+    dbus_active=false;
 }
 
 void VideoControls::Toggle()
@@ -170,20 +186,30 @@ void VideoControls::SetPosition(int64_t pos, int64_t length)
 		fprintf(stdout,"Error :%d\n",status);
 		return;
 	}
-	
-	if(status == OMXPLAYER_PLAYING)
-		Pause();
-		
-	OMXPlayerIface->call(QDBus::Block,"SetPosition",pos*1000000); // OMXplayer expect time in microseconds, we use seconds
-	endPosition = pos + length;
 
-	Play();
-	usleep(1000000);
+	//Pause();
+    //sleep(1);
+	
+	while(dbus_active);
+    dbus_active=true;
+	OMXPlayerIface->call(QDBus::Block,"SetPosition",pos*1000000); // OMXplayer expect time in microseconds, we use seconds
+	endPosition = (pos)*1000000 + length*1000000;
+    usleep(DBUS_DELAY);    
+    //dbus_active=false;
+    //while(dbus_active);
+    //dbus_active=true;
+	//OMXPlayerIface->call(QDBus::Block,"SetPosition",(pos+1)*1000000); // OMXplayer expect time in microseconds, we use seconds
+	usleep(DBUS_DELAY);    
+    dbus_active=false;
+    
+    
+    Play();
+
 }
 
 void VideoControls::Reset()
 {
-	SetPosition(8,10);
+	SetPosition(0,0);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -203,7 +229,7 @@ void VideoControls::Monitoring()
 	QDBusReply<qlonglong> Pos;
 	QDBusReply<QString> Playing;
 	uint32_t i=0;
-	while(1) // while omxplayer is running
+	while(1) 
 	{
 		usleep(100000);
 		i++;
@@ -215,27 +241,37 @@ void VideoControls::Monitoring()
 			continue;
 		}
 		
+		while(dbus_active);
+        dbus_active=true;
 		Playing = OMXPropertiesIface->call(QDBus::Block,"Get","org.mpris.MediaPlayer2.Player", "PlaybackStatus");
-		
+		usleep(DBUS_DELAY);
+        dbus_active=false;
+        
 		if(!strcmp(qPrintable(Playing.value()),"Playing"))
 			status = OMXPLAYER_PLAYING;
 		else if(!strcmp(qPrintable(Playing.value()),"Paused"))
 			status = OMXPLAYER_PAUSED;
 		else
 			error = DBUS_FAILED;
-
+ 		
+        while(dbus_active);
+        dbus_active=true;
 		Pos = OMXPropertiesIface->call(QDBus::Block,"Get","org.mpris.MediaPlayer2.Player", "Position");
-		position = (int)((qlonglong)Pos.value()/1000000);
+        usleep(DBUS_DELAY);
+        dbus_active=false;
+        
+        position = (int64_t)(Pos.value());
 		
 		
 		if(i%10==0)
 		{
 			printf("status:%s\n",qPrintable(Playing.value()));
-			printf("time:%d/%d\n",position,endPosition);
+			printf("time:%.1f/%d\n",(float)position/1000000,endPosition/1000000);
 		}
 		
-		
-		if(position >= endPosition)
+		printf("%.1f\n",(float)position/1000000);
+        
+		if(position > endPosition)
 			if(status == OMXPLAYER_PLAYING)
 			{
 				Pause();
@@ -249,9 +285,10 @@ void VideoControls::Monitoring()
 
 volatile int VideoControls::error = OMXPLAYER_OFF;;
 volatile int VideoControls::status = OMXPLAYER_OFF;
+volatile bool VideoControls::dbus_active = false;
 
 volatile int VideoControls::position;
-int VideoControls::endPosition;
+volatile int VideoControls::endPosition;
 
 std::thread * VideoControls::thread;
 volatile pid_t VideoControls::pid=0;

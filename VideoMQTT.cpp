@@ -52,16 +52,16 @@ void VideoMQTT::ParseMessage(struct mosquitto * mosq, void * userdata, const str
 	std::string cmd[5];
 	uint8_t	i=0;
 
-	fprintf(stderr,"%s\n",s.c_str());
+	fprintf(stdout,"%s\n",s.c_str());
 
 	while( (pos=s.find(" ")) != std::string::npos)
 	{
 		cmd[i]=s.substr(0,pos);
 		s.erase(0,pos+1);
-		fprintf(stderr,"%s ",cmd[i].c_str());
+		//fprintf(stderr,"%s ",cmd[i].c_str());
 		i++;
 	}
-	fprintf(stderr,"\n");
+	//fprintf(stderr,"\n");
 
 	if(!strcmp("start",cmd[0].c_str()))
 		if(i == 2) // We need one argument

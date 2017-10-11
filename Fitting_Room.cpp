@@ -1,5 +1,9 @@
- #include <stdint.h>
+#include <stdint.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <iostream>
+#include <termios.h>
+
 #include <QCoreApplication>
 #include <QtDBus>
 
@@ -16,55 +20,32 @@
 //#define MQTT_BROKER_IP	"127.0.0.1"	// Loopback
 //#define MQTT_BROKER_IP	"192.168.43.1"	 // Android hotspot
 #define MQTT_TOPIC	"VideoControlTopic"
-#define QOS			2
+#define QOS			0
 
-#define VIDEOFILE "/home/metabaron/tableau.mp4"
-//#define VIDEOFILE "/home/EscapeRush/tableau.mp4"
+//#define VIDEOFILE "/home/metabaron/tableau.mp4"
+#define VIDEOFILE "/home/pi/Videos/code.mp4"
 
 int main(int argc, char *argv[])
 {
 	sleep(5);
 
 	QCoreApplication app(argc, argv);
-	//while(!VideoControls::Init())
-	//	usleep(100000);
-	
+
 	VideoMQTT mqtt(MQTT_PORT,MQTT_BROKER_IP,MQTT_TOPIC,QOS);
+    
 //	VideoButtons button;
 //	button.AddButton(TOGGLE_BUTTON,"Toggle");
 //	button.AddButton(RESET_BUTTON,"Reset");
 	
 
 	
-	//VideoControls::Start(VIDEOFILE);
-	//VideoControls::Stop();
-	
-	//VideoControls::Play();
-	
-/*	VideoControls::Stop();  // Necessary when using systemd for startup
-	sleep(2);
-	VideoControls::Start("/home/metabaron/tableau.mp4");
-	sleep(2);
-	VideoControls::Pause();
-*/
+	VideoControls::Start(VIDEOFILE);
+//	VideoControls::SetPosition(0,10);
 
-	while(1)
+while(1)
 	{
-/*		if(button.HasBeenPushed(TOGGLE_BUTTON))
-		{
-			VideoControls::Toggle();
-			//button.printButton(TOGGLE_BUTTON);
-		}
 
-		if(button.HasBeenPushed(RESET_BUTTON))
-		{
-			VideoControls::SetPosition(8,15);
-			VideoControls::Pause();
-			//button.printButton(RESET_BUTTON);
-		}
-
-*/
-		usleep(100000);
+		usleep(10000);
 	}
 
 	return 0;
